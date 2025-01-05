@@ -9,12 +9,16 @@ import {
   Tag,
   ChevronRight,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import React, { useReducer, useEffect } from "react";
 
-import logger from "@/lib/logger";
-import type { Exercise } from "@/types/models";
-import { ExerciseType, DifficultyType, MuscleGroup } from "@/types/models";
-
+import { clientLogger } from "../../../lib/logger/client";
+import type { Exercise } from "../../../types/models";
+import {
+  ExerciseType,
+  DifficultyType,
+  MuscleGroup,
+} from "../../../types/models";
 import { Alert, AlertDescription } from "../../ui/alert";
 import { Button } from "../../ui/button";
 import { Card, CardHeader, CardContent } from "../../ui/card";
@@ -248,12 +252,13 @@ const ExerciseCard = ({ exercise }: { exercise: Exercise }) => (
 
 // Main Component
 export default function ExerciseList() {
+  const router = useRouter();
   const [state, dispatch] = useReducer(reducer, initialState);
   const { exercises, filters, searchQuery, view, error, loading } = state;
 
   useEffect(() => {
     const fetchExercises = async () => {
-      logger.info("Fetching exercises", { filters, searchQuery });
+      clientLogger.info("Fetching exercises", { filters, searchQuery });
       dispatch({ type: "SET_LOADING", payload: true });
 
       try {
@@ -269,7 +274,7 @@ export default function ExerciseList() {
         const data = await response.json();
         dispatch({ type: "SET_EXERCISES", payload: data });
       } catch (error) {
-        logger.error("Error fetching exercises", { error });
+        clientLogger.error("Error fetching exercises", { error });
         dispatch({
           type: "SET_ERROR",
           payload: "Failed to load exercises. Please try again.",
@@ -286,7 +291,10 @@ export default function ExerciseList() {
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold">Exercises</h1>
-        <Button className="flex items-center gap-2">
+        <Button
+          className="flex items-center gap-2"
+          onClick={() => router.push("/exercises/new")}
+        >
           <Plus className="w-4 h-4" />
           New Exercise
         </Button>

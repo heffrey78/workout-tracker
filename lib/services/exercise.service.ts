@@ -3,12 +3,12 @@ import type {
   ExerciseType,
   DifficultyType,
   MuscleGroup,
-} from "@/types/models";
-
+} from "../../types/models";
 import logger from "../logger";
 import prisma from "../prisma";
 import type { ExerciseSearchParams } from "../repositories/exercise.repository";
 import { ExerciseRepository } from "../repositories/exercise.repository";
+import type { ExerciseFormData } from "../schemas/exercise.schema";
 
 export class ExerciseService {
   private repository: ExerciseRepository;
@@ -65,6 +65,31 @@ export class ExerciseService {
       return exercise;
     } catch (error) {
       logger.error("Error getting exercise by id", { error, id });
+      throw error;
+    }
+  }
+
+  async createExercise(data: ExerciseFormData): Promise<Exercise> {
+    logger.info("Creating exercise", { data });
+
+    try {
+      const exercise = await this.repository.create({
+        name: data.name,
+        description: data.description || "",
+        type: data.type,
+        muscleGroups: data.muscleGroups,
+        difficulty: data.difficulty,
+        equipment: data.equipment,
+        movements: data.movements,
+        videoUrl: data.videoUrl || "",
+        imageUrls: data.imageUrls,
+        isArchived: data.isArchived,
+      });
+      logger.info("Successfully created exercise", { id: exercise.id });
+
+      return exercise;
+    } catch (error) {
+      logger.error("Error creating exercise", { error });
       throw error;
     }
   }

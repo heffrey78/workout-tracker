@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
-import logger from "@/lib/logger";
-import { exerciseService } from "@/lib/services/exercise.service";
-import { ExerciseType, DifficultyType, MuscleGroup } from "@/types/models";
+import logger from "../../../lib/logger";
+import { exerciseSchema } from "../../../lib/schemas/exercise.schema";
+import { exerciseService } from "../../../lib/services/exercise.service";
+import {
+  ExerciseType,
+  DifficultyType,
+  MuscleGroup,
+} from "../../../types/models";
 
 export async function GET(request: Request) {
   try {
@@ -48,6 +54,32 @@ export async function GET(request: Request) {
 
     return NextResponse.json(
       { error: "Failed to fetch exercises" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const data = await request.json();
+    logger.info("POST /api/exercises", { data });
+
+    const validated = exerciseSchema.parse(data);
+    const exercise = await exerciseService.createExercise(validated);
+
+    return NextResponse.json(exercise, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      logger.warn("Validation error in POST /api/exercises", { error });
+      return NextResponse.json(
+        { error: "Invalid exercise data", details: error.errors },
+        { status: 400 },
+      );
+    }
+
+    logger.error("Error in POST /api/exercises", { error });
+    return NextResponse.json(
+      { error: "Failed to create exercise" },
       { status: 500 },
     );
   }

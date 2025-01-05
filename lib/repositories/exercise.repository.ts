@@ -65,13 +65,12 @@ export class ExerciseRepository extends BaseRepository<Exercise> {
       const created = await this.prisma.exercise.create({
         data: {
           name: exercise.name,
-          description: exercise.description,
-          category: exercise.type, // Map to existing schema
+          description: exercise.description || null,
+          type: exercise.type,
           isArchived: exercise.isArchived,
-          lastUsedAt: exercise.lastUsedAt,
-          videoUrl: exercise.videoUrl,
-          imageUrls: exercise.imageUrls,
-          // Store arrays as JSON in the database
+          lastUsedAt: exercise.lastUsedAt || null,
+          videoUrl: exercise.videoUrl || null,
+          imageUrls: JSON.stringify(exercise.imageUrls || []),
           muscleGroups: JSON.stringify(exercise.muscleGroups),
           difficulty: JSON.stringify(exercise.difficulty),
           equipment: JSON.stringify(exercise.equipment),
@@ -91,24 +90,40 @@ export class ExerciseRepository extends BaseRepository<Exercise> {
       this.validateId(id);
       this.logOperation("update", { id, exercise });
 
-      const data: any = { ...exercise };
+      const data: any = {};
 
-      // Only stringify arrays if they are present in the update
-      if (exercise.muscleGroups) {
+      if (exercise.name !== undefined) {
+        data.name = exercise.name;
+      }
+      if (exercise.description !== undefined) {
+        data.description = exercise.description || null;
+      }
+      if (exercise.type !== undefined) {
+        data.type = exercise.type;
+      }
+      if (exercise.isArchived !== undefined) {
+        data.isArchived = exercise.isArchived;
+      }
+      if (exercise.lastUsedAt !== undefined) {
+        data.lastUsedAt = exercise.lastUsedAt || null;
+      }
+      if (exercise.videoUrl !== undefined) {
+        data.videoUrl = exercise.videoUrl || null;
+      }
+      if (exercise.muscleGroups !== undefined) {
         data.muscleGroups = JSON.stringify(exercise.muscleGroups);
       }
-      if (exercise.difficulty) {
+      if (exercise.difficulty !== undefined) {
         data.difficulty = JSON.stringify(exercise.difficulty);
       }
-      if (exercise.equipment) {
+      if (exercise.equipment !== undefined) {
         data.equipment = JSON.stringify(exercise.equipment);
       }
-      if (exercise.movements) {
+      if (exercise.movements !== undefined) {
         data.movements = JSON.stringify(exercise.movements);
       }
-      if (exercise.type) {
-        data.category = exercise.type;
-        delete data.type;
+      if (exercise.imageUrls !== undefined) {
+        data.imageUrls = JSON.stringify(exercise.imageUrls);
       }
 
       const updated = await this.prisma.exercise.update({
@@ -146,11 +161,25 @@ export class ExerciseRepository extends BaseRepository<Exercise> {
     }
 
     if (params.type) {
-      query.category = params.type;
+      query.type = params.type;
     }
 
     if (params.isArchived !== undefined) {
       query.isArchived = params.isArchived;
+    }
+
+    if (params.muscleGroups?.length) {
+      // Search within JSON array for any of the specified muscle groups
+      query.muscleGroups = {
+        contains: params.muscleGroups[0],
+      };
+    }
+
+    if (params.difficulty?.length) {
+      // Search within JSON array for any of the specified difficulties
+      query.difficulty = {
+        contains: params.difficulty[0],
+      };
     }
 
     return query;
@@ -170,16 +199,16 @@ export class ExerciseRepository extends BaseRepository<Exercise> {
     return {
       id: data.id,
       name: data.name,
-      description: data.description,
-      type: data.category as ExerciseType,
+      description: data.description || "",
+      type: data.type as ExerciseType,
       muscleGroups: JSON.parse(data.muscleGroups || "[]"),
       difficulty: JSON.parse(data.difficulty || "[]"),
       equipment: JSON.parse(data.equipment || "[]"),
       movements: JSON.parse(data.movements || "[]"),
-      videoUrl: data.videoUrl,
-      imageUrls: data.imageUrls,
+      videoUrl: data.videoUrl || undefined,
+      imageUrls: JSON.parse(data.imageUrls || "[]"),
       isArchived: data.isArchived,
-      lastUsedAt: data.lastUsedAt,
+      lastUsedAt: data.lastUsedAt || undefined,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     };
