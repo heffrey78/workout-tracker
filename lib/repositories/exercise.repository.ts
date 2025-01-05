@@ -1,17 +1,40 @@
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient, Prisma } from "@prisma/client";
 
-import type { Exercise, ExerciseType } from "../../types/models";
+import type {
+  Exercise,
+  ExerciseType,
+  Equipment,
+  MuscleGroup,
+  DifficultyType,
+  MovementType,
+  Body,
+} from "../../types/models";
 
 import { BaseRepository, RepositoryError } from "./base.repository";
 
 export interface ExerciseSearchParams {
   name?: string;
   type?: ExerciseType;
-  muscleGroups?: string[];
-  equipment?: string[];
-  difficulty?: string[];
+  muscleGroups?: MuscleGroup[];
+  equipment?: Equipment[];
+  difficulty?: DifficultyType[];
   isArchived?: boolean;
 }
+
+type ExerciseCreateData = Omit<Exercise, "id" | "createdAt" | "updatedAt">;
+
+type PrismaExercise = Prisma.ExerciseGetPayload<{
+  include: {
+    muscleGroups: true;
+    equipment: true;
+    workoutExercises: {
+      include: {
+        sets: true;
+      };
+    };
+    personalRecords: true;
+  };
+}>;
 
 export class ExerciseRepository extends BaseRepository<Exercise> {
   constructor(prisma: PrismaClient) {
@@ -50,15 +73,13 @@ export class ExerciseRepository extends BaseRepository<Exercise> {
         orderBy: { updatedAt: "desc" },
       });
 
-      return exercises.map(this.mapToExercise);
+      return exercises.map((exercise) => this.mapToExercise(exercise));
     } catch (error) {
       this.handleError(error, "findAll", params);
     }
   }
 
-  async create(
-    exercise: Omit<Exercise, "id" | "createdAt" | "updatedAt">,
-  ): Promise<Exercise> {
+  async create(exercise: ExerciseCreateData): Promise<Exercise> {
     try {
       this.logOperation("create", exercise);
 
@@ -70,11 +91,15 @@ export class ExerciseRepository extends BaseRepository<Exercise> {
           isArchived: exercise.isArchived,
           lastUsedAt: exercise.lastUsedAt || null,
           videoUrl: exercise.videoUrl || null,
-          imageUrls: JSON.stringify(exercise.imageUrls || []),
-          muscleGroups: JSON.stringify(exercise.muscleGroups),
-          difficulty: JSON.stringify(exercise.difficulty),
-          equipment: JSON.stringify(exercise.equipment),
-          movements: JSON.stringify(exercise.movements),
+          imageUrls: (exercise.imageUrls || []) as Prisma.InputJsonValue,
+          difficulty: exercise.difficulty as Prisma.InputJsonValue,
+          movements: exercise.movements as Prisma.InputJsonValue,
+          muscleGroups: {
+            connect: exercise.muscleGroups?.map((mg) => ({ id: mg.id })) || [],
+          },
+          equipment: {
+            connect: exercise.equipment?.map((eq) => ({ id: eq.id })) || [],
+          },
         },
         include: this.getIncludeOptions(),
       });
@@ -90,40 +115,38 @@ export class ExerciseRepository extends BaseRepository<Exercise> {
       this.validateId(id);
       this.logOperation("update", { id, exercise });
 
-      const data: any = {};
+      const data: Prisma.ExerciseUpdateInput = {};
 
-      if (exercise.name !== undefined) {
-        data.name = exercise.name;
-      }
-      if (exercise.description !== undefined) {
+      if (exercise.name !== undefined) data.name = exercise.name;
+      if (exercise.description !== undefined)
         data.description = exercise.description || null;
-      }
-      if (exercise.type !== undefined) {
-        data.type = exercise.type;
-      }
-      if (exercise.isArchived !== undefined) {
+      if (exercise.type !== undefined) data.type = exercise.type;
+      if (exercise.isArchived !== undefined)
         data.isArchived = exercise.isArchived;
-      }
-      if (exercise.lastUsedAt !== undefined) {
+      if (exercise.lastUsedAt !== undefined)
         data.lastUsedAt = exercise.lastUsedAt || null;
-      }
-      if (exercise.videoUrl !== undefined) {
+      if (exercise.videoUrl !== undefined)
         data.videoUrl = exercise.videoUrl || null;
-      }
-      if (exercise.muscleGroups !== undefined) {
-        data.muscleGroups = JSON.stringify(exercise.muscleGroups);
+      if (exercise.imageUrls !== undefined) {
+        data.imageUrls = (exercise.imageUrls || []) as Prisma.InputJsonValue;
       }
       if (exercise.difficulty !== undefined) {
-        data.difficulty = JSON.stringify(exercise.difficulty);
-      }
-      if (exercise.equipment !== undefined) {
-        data.equipment = JSON.stringify(exercise.equipment);
+        data.difficulty = exercise.difficulty as Prisma.InputJsonValue;
       }
       if (exercise.movements !== undefined) {
-        data.movements = JSON.stringify(exercise.movements);
+        data.movements = exercise.movements as Prisma.InputJsonValue;
       }
-      if (exercise.imageUrls !== undefined) {
-        data.imageUrls = JSON.stringify(exercise.imageUrls);
+      if (exercise.muscleGroups !== undefined) {
+        data.muscleGroups = {
+          set: [],
+          connect: exercise.muscleGroups.map((mg) => ({ id: mg.id })),
+        };
+      }
+      if (exercise.equipment !== undefined) {
+        data.equipment = {
+          set: [],
+          connect: exercise.equipment.map((eq) => ({ id: eq.id })),
+        };
       }
 
       const updated = await this.prisma.exercise.update({
@@ -151,10 +174,12 @@ export class ExerciseRepository extends BaseRepository<Exercise> {
     }
   }
 
-  private buildSearchQuery(params?: ExerciseSearchParams) {
+  private buildSearchQuery(
+    params?: ExerciseSearchParams,
+  ): Prisma.ExerciseWhereInput {
     if (!params) return {};
 
-    const query: any = {};
+    const query: Prisma.ExerciseWhereInput = {};
 
     if (params.name) {
       query.name = { contains: params.name, mode: "insensitive" };
@@ -169,16 +194,29 @@ export class ExerciseRepository extends BaseRepository<Exercise> {
     }
 
     if (params.muscleGroups?.length) {
-      // Search within JSON array for any of the specified muscle groups
       query.muscleGroups = {
-        contains: params.muscleGroups[0],
+        some: {
+          id: {
+            in: params.muscleGroups.map((mg) => mg.id),
+          },
+        },
+      };
+    }
+
+    if (params.equipment?.length) {
+      query.equipment = {
+        some: {
+          id: {
+            in: params.equipment.map((eq) => eq.id),
+          },
+        },
       };
     }
 
     if (params.difficulty?.length) {
-      // Search within JSON array for any of the specified difficulties
       query.difficulty = {
-        contains: params.difficulty[0],
+        array_contains: params
+          .difficulty[0] as unknown as Prisma.InputJsonValue,
       };
     }
 
@@ -187,30 +225,67 @@ export class ExerciseRepository extends BaseRepository<Exercise> {
 
   private getIncludeOptions() {
     return {
+      muscleGroups: true,
+      equipment: true,
       workoutExercises: {
         include: {
           sets: true,
         },
       },
-    };
+      personalRecords: true,
+    } as const;
   }
 
-  private mapToExercise(data: any): Exercise {
-    return {
-      id: data.id,
-      name: data.name,
-      description: data.description || "",
-      type: data.type as ExerciseType,
-      muscleGroups: JSON.parse(data.muscleGroups || "[]"),
-      difficulty: JSON.parse(data.difficulty || "[]"),
-      equipment: JSON.parse(data.equipment || "[]"),
-      movements: JSON.parse(data.movements || "[]"),
-      videoUrl: data.videoUrl || undefined,
-      imageUrls: JSON.parse(data.imageUrls || "[]"),
-      isArchived: data.isArchived,
-      lastUsedAt: data.lastUsedAt || undefined,
-      createdAt: data.createdAt,
-      updatedAt: data.updatedAt,
-    };
+  private isMuscleGroup(mg: any): mg is MuscleGroup {
+    return mg && typeof mg === "object" && "body" in mg;
   }
+
+  private isEquipment(eq: any): eq is Equipment {
+    return eq && typeof eq === "object" && "category" in eq;
+  }
+
+  private mapToExercise = (prismaExercise: PrismaExercise): Exercise => {
+    if (!prismaExercise) throw new Error("Cannot map null exercise");
+
+    const muscleGroups = prismaExercise.muscleGroups
+      .filter(this.isMuscleGroup)
+      .map((mg) => ({
+        id: mg.id,
+        name: mg.name,
+        body: mg.body as Body,
+        description: mg.description,
+        createdAt: mg.createdAt,
+        updatedAt: mg.updatedAt,
+      }));
+
+    const equipment = prismaExercise.equipment
+      .filter(this.isEquipment)
+      .map((eq) => ({
+        id: eq.id,
+        name: eq.name,
+        description: eq.description,
+        category: eq.category,
+        createdAt: eq.createdAt,
+        updatedAt: eq.updatedAt,
+      }));
+
+    const exercise: Exercise = {
+      id: prismaExercise.id,
+      name: prismaExercise.name,
+      description: prismaExercise.description || "",
+      type: prismaExercise.type as ExerciseType,
+      muscleGroups,
+      difficulty: prismaExercise.difficulty as DifficultyType[],
+      equipment,
+      movements: prismaExercise.movements as MovementType[],
+      videoUrl: prismaExercise.videoUrl || null,
+      imageUrls: (prismaExercise.imageUrls as string[]) || null,
+      isArchived: prismaExercise.isArchived,
+      lastUsedAt: prismaExercise.lastUsedAt || null,
+      createdAt: prismaExercise.createdAt,
+      updatedAt: prismaExercise.updatedAt,
+    };
+
+    return exercise;
+  };
 }

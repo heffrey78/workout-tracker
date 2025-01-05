@@ -14,48 +14,51 @@ export enum ExerciseType {
   Mobility = "MOBILITY",
 }
 
-export enum EffortType {
-  Easy = "EASY",
-  Challenging = "CHALLENGING",
-  Maximum = "MAXIMUM",
-}
-
-export enum MuscleGroup {
-  Chest = "CHEST",
-  Back = "BACK",
-  Shoulders = "SHOULDERS",
-  Biceps = "BICEPS",
-  Triceps = "TRICEPS",
-  Core = "CORE",
-  Legs = "LEGS",
-  Glutes = "GLUTES",
-  Calves = "CALVES",
-}
-
-export enum Equipment {
-  Barbell = "BARBELL",
-  Dumbbell = "DUMBBELL",
-  Kettlebell = "KETTLEBELL",
-  Machine = "MACHINE",
-  Bodyweight = "BODYWEIGHT",
-  Resistance = "RESISTANCE",
-  Other = "OTHER",
-}
-
 export enum MovementType {
+  Isometric = "ISOMETRIC",
   Push = "PUSH",
   Pull = "PULL",
-  Squat = "SQUAT",
   Hinge = "HINGE",
+  Squat = "SQUAT",
   Lunge = "LUNGE",
-  Carry = "CARRY",
-  Core = "CORE",
+  Rotation = "ROTATION",
+  Plyometric = "PLYOMETRIC",
 }
 
 export enum DifficultyType {
   Beginner = "BEGINNER",
   Intermediate = "INTERMEDIATE",
   Advanced = "ADVANCED",
+}
+
+export enum EffortType {
+  Easy = "EASY",
+  Challenging = "CHALLENGING",
+  Maximum = "MAXIMUM",
+}
+
+export enum Body {
+  Upper = "UPPER",
+  Lower = "LOWER",
+  Core = "CORE",
+}
+
+export interface Equipment {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface MuscleGroup {
+  id: string;
+  name: string;
+  body: Body;
+  description: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Exercise {
@@ -67,10 +70,10 @@ export interface Exercise {
   difficulty: DifficultyType[];
   equipment: Equipment[];
   movements: MovementType[];
-  videoUrl?: string;
-  imageUrls?: string[];
+  videoUrl?: string | null;
+  imageUrls?: string[] | null;
   isArchived: boolean;
-  lastUsedAt?: Date;
+  lastUsedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -79,11 +82,26 @@ export interface Set {
   id: string;
   workoutExerciseId: string;
   effort: EffortType;
-  notes?: string;
+  notes: string;
   reps: number;
-  duration?: string | null; // Format: "mm:ss"
-  weight?: number | null; // in kg
+  duration?: string | undefined; // Format: "mm:ss"
+  weight?: number | undefined; // in kg
   isPersonalRecord: boolean;
+  restDuration?: string | undefined; // Format: "mm:ss"
+  actualRestTaken?: string | undefined; // Format: "mm:ss"
+  order: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PersonalRecord {
+  id: string;
+  exerciseId: string;
+  workoutId: string;
+  setId: string;
+  type: "WEIGHT" | "REPS" | "DURATION";
+  value: number;
+  achievedAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -93,6 +111,9 @@ export interface WorkoutExercise {
   workoutId: string;
   exerciseId: string;
   sets: Set[];
+  order: number;
+  restAfter?: string | undefined; // Format: "mm:ss"
+  notes?: string | undefined;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -102,11 +123,11 @@ export interface Workout {
   userId: string;
   user: User;
   name: string;
-  description?: string;
+  description?: string | undefined;
   exercises: WorkoutExercise[];
-  notes?: string;
+  notes: string;
   startTime: Date;
-  endTime?: Date;
+  endTime?: Date | undefined;
   createdAt: Date;
   updatedAt: Date;
 }

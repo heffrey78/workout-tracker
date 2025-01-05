@@ -21,22 +21,53 @@ model User {
   @@map("users")
 }
 
+enum Body {
+  UPPER
+  LOWER
+  CORE
+}
+
+model Equipment {
+  id          String     @id @default(cuid())
+  name        String
+  description String
+  category    String
+  exercises   Exercise[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("equipment")
+}
+
+model MuscleGroup {
+  id          String     @id @default(cuid())
+  name        String
+  body        Body
+  description String
+  exercises   Exercise[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("muscle_groups")
+}
+
 model Exercise {
   id              String            @id @default(cuid())
   name            String
   description     String?
   type            String            // ExerciseType enum
-  muscleGroups    String            // JSON array of MuscleGroup enum
-  difficulty      String            // JSON array of DifficultyType enum
-  equipment       String            // JSON array of Equipment enum
-  movements       String            // JSON array of MovementType enum
+  difficulty      Json              // JSON array of DifficultyType enum
+  movements       Json              // JSON array of MovementType enum
   videoUrl        String?
-  imageUrls       String?           // JSON array of strings
+  imageUrls       Json?             // JSON array of strings
   isArchived      Boolean           @default(false)
   lastUsedAt      DateTime?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+  muscleGroups    MuscleGroup[]
+  equipment       Equipment[]
   workoutExercises WorkoutExercise[]
+  personalRecords PersonalRecord[]
 
   @@index([name])
   @@index([type])
@@ -46,17 +77,18 @@ model Exercise {
 }
 
 model Workout {
-  id          String            @id @default(cuid())
-  userId      String
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String            @default("")
-  description String?
-  date        DateTime          @default(now())
-  notes       String?
-  endTime     DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  exercises   WorkoutExercise[]
+  id              String            @id @default(cuid())
+  userId          String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String            @default("")
+  description     String?
+  date            DateTime          @default(now())
+  notes           String?
+  endTime         DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  exercises       WorkoutExercise[]
+  personalRecords PersonalRecord[]
 
   @@index([userId])
   @@index([date])
@@ -67,6 +99,9 @@ model WorkoutExercise {
   id          String    @id @default(cuid())
   workoutId   String
   exerciseId  String
+  order       Int       @default(0)
+  restAfter   Int?      // stored in seconds
+  notes       String?
   workout     Workout   @relation(fields: [workoutId], references: [id], onDelete: Cascade)
   exercise    Exercise  @relation(fields: [exerciseId], references: [id])
   sets        Set[]
@@ -79,19 +114,43 @@ model WorkoutExercise {
 }
 
 model Set {
-  id                String          @id @default(cuid())
+  id                String           @id @default(cuid())
   workoutExerciseId String
-  workoutExercise   WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+  order             Int              @default(0)
   reps              Int
   weight            Float?
-  duration          Int?            // Stored in seconds
+  duration          Int?             // stored in seconds
+  restDuration      Int?             // stored in seconds
+  actualRestTaken   Int?             // stored in seconds
   notes             String?
-  isPersonalRecord  Boolean         @default(false)
-  effort            String          // EffortType enum
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  isPersonalRecord  Boolean          @default(false)
+  effort            String           // EffortType enum
+  workoutExercise   WorkoutExercise  @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+  personalRecords   PersonalRecord[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@index([workoutExerciseId])
   @@index([isPersonalRecord])
   @@map("sets")
+}
+
+model PersonalRecord {
+  id          String    @id @default(cuid())
+  exerciseId  String
+  workoutId   String
+  setId       String
+  type        String    // "WEIGHT" | "REPS" | "DURATION"
+  value       Float
+  achievedAt  DateTime
+  exercise    Exercise  @relation(fields: [exerciseId], references: [id])
+  workout     Workout   @relation(fields: [workoutId], references: [id])
+  set         Set       @relation(fields: [setId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([exerciseId])
+  @@index([workoutId])
+  @@index([setId])
+  @@map("personal_records")
 }
