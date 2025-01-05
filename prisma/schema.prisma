@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  workouts      Workout[]
+  
+  @@map("users")
+}
+
+model Exercise {
+  id              String            @id @default(cuid())
+  name            String
+  description     String?
+  type            String            // ExerciseType enum
+  muscleGroups    String            // JSON array of MuscleGroup enum
+  difficulty      String            // JSON array of DifficultyType enum
+  equipment       String            // JSON array of Equipment enum
+  movements       String            // JSON array of MovementType enum
+  videoUrl        String?
+  imageUrls       String?           // JSON array of strings
+  isArchived      Boolean           @default(false)
+  lastUsedAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  workoutExercises WorkoutExercise[]
+
+  @@index([name])
+  @@index([type])
+  @@index([isArchived])
+  @@index([lastUsedAt])
+  @@map("exercises")
+}
+
+model Workout {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String            @default("")
+  description String?
+  date        DateTime          @default(now())
+  notes       String?
+  endTime     DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  exercises   WorkoutExercise[]
+
+  @@index([userId])
+  @@index([date])
+  @@map("workouts")
+}
+
+model WorkoutExercise {
+  id          String    @id @default(cuid())
+  workoutId   String
+  exerciseId  String
+  workout     Workout   @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exercise    Exercise  @relation(fields: [exerciseId], references: [id])
+  sets        Set[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workoutId])
+  @@index([exerciseId])
+  @@map("workout_exercises")
+}
+
+model Set {
+  id                String          @id @default(cuid())
+  workoutExerciseId String
+  workoutExercise   WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+  reps              Int
+  weight            Float?
+  duration          Int?            // Stored in seconds
+  notes             String?
+  isPersonalRecord  Boolean         @default(false)
+  effort            String          // EffortType enum
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([workoutExerciseId])
+  @@index([isPersonalRecord])
+  @@map("sets")
+}
