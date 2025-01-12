@@ -2,7 +2,7 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { MuscleGroupList } from "@/components/muscle-groups/MuscleGroupList/index.";
+import { MuscleGroupList } from "@/components/muscle-groups/MuscleGroupList";
 import { Button } from "@/components/ui/button";
 import { muscleGroupService } from "@/lib/services/muscle-group.service";
 

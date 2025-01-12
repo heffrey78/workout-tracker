@@ -14,15 +14,50 @@ import logger from "../../../lib/logger";
  * @returns {NextResponse} A JSON response with the list of muscle groups.
  * @throws {Error} If there is a problem fetching the muscle groups.
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+
   try {
-    const muscleGroups = await muscleGroupService.findAll();
-    return NextResponse.json(muscleGroups);
+    if (id) {
+      const muscleGroup = await muscleGroupService.findById(id);
+      return NextResponse.json(muscleGroup);
+    } else {
+      const muscleGroups = await muscleGroupService.findAll();
+      return NextResponse.json(muscleGroups);
+    }
   } catch (error) {
     logger.error("Error in GET /api/muscle-groups", { error });
 
     return NextResponse.json(
-      { error: "Failed to fetch musclegroups" },
+      { error: "Failed to fetch muscle group data" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PUT(request: Request) {
+  const { id, ...body } = await request.json();
+  try {
+    const muscleGroup = await muscleGroupService.update(id, body);
+    return NextResponse.json(muscleGroup);
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to update muscle group" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { id } = await request.json();
+    await muscleGroupService.delete(id);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    logger.error("Error in DELETE /api/muscle-groups", { error });
+    return NextResponse.json(
+      { error: "Failed to delete muscle group" },
       { status: 500 },
     );
   }

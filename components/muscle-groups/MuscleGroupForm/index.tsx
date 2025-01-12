@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -21,33 +22,54 @@ import {
 } from "@/lib/schemas/muscle-group.schema";
 import { Body } from "@/types/models";
 
-export function MuscleGroupForm() {
+interface MuscleGroupFormProps {
+  mode?: "create" | "edit";
+  initialData?: MuscleGroupFormData & { id?: string };
+}
+
+export function MuscleGroupForm({
+  mode = "create",
+  initialData,
+}: MuscleGroupFormProps) {
   const router = useRouter();
   const {
     register,
     handleSubmit,
     setValue,
-    // watch,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<MuscleGroupFormData>({
     resolver: zodResolver(muscleGroupSchema),
-    defaultValues: {
+    defaultValues: initialData || {
       name: "",
       description: "",
       body: Body.Full,
     },
   });
 
+  useEffect(() => {
+    if (initialData) {
+      reset(initialData);
+    }
+  }, [initialData, reset]);
+
   const onSubmit = async (data: MuscleGroupFormData) => {
-    clientLogger.info("Submitting new muscle group", { data });
+    clientLogger.info(`Submitting ${mode} muscle group`, { data });
 
     try {
-      const response = await fetch("/api/muscle-groups", {
-        method: "POST",
+      const url =
+        mode === "edit" && initialData?.id
+          ? `/api/muscle-groups`
+          : "/api/muscle-groups";
+
+      const response = await fetch(url, {
+        method: mode === "edit" ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(
+          mode === "edit" ? { id: initialData?.id, ...data } : data,
+        ),
       });
 
       if (!response.ok) {
@@ -152,7 +174,13 @@ export function MuscleGroupForm() {
           Cancel
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Creating..." : "Create Muscle Group"}
+          {isSubmitting
+            ? mode === "edit"
+              ? "Updating..."
+              : "Creating..."
+            : mode === "edit"
+              ? "Update Muscle Group"
+              : "Create Muscle Group"}
         </Button>
       </div>
     </form>
