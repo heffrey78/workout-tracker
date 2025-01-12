@@ -10,15 +10,11 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import React, { useReducer, useEffect } from "react";
+import React, { useReducer, useEffect, useState } from "react";
 
 import { clientLogger } from "../../../lib/logger/client";
-import type { Exercise } from "../../../types/models";
-import {
-  ExerciseType,
-  DifficultyType,
-  MuscleGroup,
-} from "../../../types/models";
+import type { Exercise, MuscleGroup } from "../../../types/models";
+import { ExerciseType, DifficultyType } from "../../../types/models";
 import { Alert, AlertDescription } from "../../ui/alert";
 import { Button } from "../../ui/button";
 import { Card, CardHeader, CardContent } from "../../ui/card";
@@ -121,91 +117,113 @@ const FilterSection = ({
 }: {
   dispatch: React.Dispatch<Action>;
   filters: FilterState;
-}) => (
-  <div className="p-4 bg-gray-50 rounded-lg space-y-4">
-    <div className="flex items-center gap-2 mb-4">
-      <Filter className="w-4 h-4" />
-      <h3 className="font-medium">Filters</h3>
+}) => {
+  const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([]);
+
+  useEffect(() => {
+    const fetchMuscleGroups = async () => {
+      try {
+        const response = await fetch("/api/muscle-groups");
+        if (!response.ok) throw new Error("Failed to fetch muscle groups");
+        const data = await response.json();
+        setMuscleGroups(data);
+      } catch (error) {
+        clientLogger.error("Error fetching muscle groups", { error });
+      }
+    };
+
+    fetchMuscleGroups();
+  }, []);
+
+  return (
+    <div className="p-4 bg-gray-50 rounded-lg space-y-4">
+      <div className="flex items-center gap-2 mb-4">
+        <Filter className="w-4 h-4" />
+        <h3 className="font-medium">Filters</h3>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Select
+          value={filters.type || "all"}
+          onValueChange={(value: string) =>
+            dispatch({
+              type: "SET_FILTER",
+              payload: {
+                key: "type",
+                value: value === "all" ? null : (value as ExerciseType),
+              },
+            })
+          }
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Exercise Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            {Object.values(ExerciseType).map((type) => (
+              <SelectItem key={type} value={type}>
+                {type}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={filters.difficulty || "all"}
+          onValueChange={(value: string) =>
+            dispatch({
+              type: "SET_FILTER",
+              payload: {
+                key: "difficulty",
+                value: value === "all" ? null : (value as DifficultyType),
+              },
+            })
+          }
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Difficulty" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Levels</SelectItem>
+            {Object.values(DifficultyType).map((difficulty) => (
+              <SelectItem key={difficulty} value={difficulty}>
+                {difficulty}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={filters.body?.id || "all"}
+          onValueChange={(value: string) =>
+            dispatch({
+              type: "SET_FILTER",
+              payload: {
+                key: "body",
+                value:
+                  value === "all"
+                    ? null
+                    : muscleGroups.find((mg) => mg.id === value) || null,
+              },
+            })
+          }
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Body Part" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Body Parts</SelectItem>
+            {muscleGroups.map((group) => (
+              <SelectItem key={group.id} value={group.id}>
+                {group.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
-
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <Select
-        value={filters.type || "all"}
-        onValueChange={(value: string) =>
-          dispatch({
-            type: "SET_FILTER",
-            payload: {
-              key: "type",
-              value: value === "all" ? null : (value as ExerciseType),
-            },
-          })
-        }
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Exercise Type" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Types</SelectItem>
-          {Object.values(ExerciseType).map((type) => (
-            <SelectItem key={type} value={type}>
-              {type}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={filters.difficulty || "all"}
-        onValueChange={(value: string) =>
-          dispatch({
-            type: "SET_FILTER",
-            payload: {
-              key: "difficulty",
-              value: value === "all" ? null : (value as DifficultyType),
-            },
-          })
-        }
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Difficulty" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Levels</SelectItem>
-          {Object.values(DifficultyType).map((difficulty) => (
-            <SelectItem key={difficulty} value={difficulty}>
-              {difficulty}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={filters.body || "all"}
-        onValueChange={(value: string) =>
-          dispatch({
-            type: "SET_FILTER",
-            payload: {
-              key: "body",
-              value: value === "all" ? null : (value as MuscleGroup),
-            },
-          })
-        }
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Body Part" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Body Parts</SelectItem>
-          {Object.values(MuscleGroup).map((group) => (
-            <SelectItem key={group} value={group}>
-              {group}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  </div>
-);
+  );
+};
 
 const ExerciseCard = ({ exercise }: { exercise: Exercise }) => (
   <Card className="h-full hover:border-blue-200 transition-colors">
@@ -239,10 +257,10 @@ const ExerciseCard = ({ exercise }: { exercise: Exercise }) => (
         ))}
         {exercise.muscleGroups.map((muscle) => (
           <span
-            key={muscle}
+            key={muscle.id}
             className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs"
           >
-            {muscle}
+            {muscle.name}
           </span>
         ))}
       </div>
@@ -265,7 +283,7 @@ export default function ExerciseList() {
         const params = new URLSearchParams();
         if (filters.type) params.append("type", filters.type);
         if (filters.difficulty) params.append("difficulty", filters.difficulty);
-        if (filters.body) params.append("body", filters.body);
+        if (filters.body) params.append("bodyId", filters.body.id);
         if (searchQuery) params.append("search", searchQuery);
 
         const response = await fetch(`/api/exercises?${params}`);

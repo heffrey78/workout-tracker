@@ -30,6 +30,9 @@ export default function RootLayout({
               <NavigationItem href="/">Home</NavigationItem>
               <NavigationItem href="/exercises">Exercises</NavigationItem>
               <NavigationItem href="/workouts">Workouts</NavigationItem>
+              <NavigationItem href="/muscle-groups">
+                Muscle Groups
+              </NavigationItem>
             </div>
           </NavigationRoot>
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

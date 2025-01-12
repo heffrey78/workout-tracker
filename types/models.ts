@@ -41,6 +41,7 @@ export enum Body {
   Upper = "UPPER",
   Lower = "LOWER",
   Core = "CORE",
+  Full = "FULL",
 }
 
 export interface Equipment {
